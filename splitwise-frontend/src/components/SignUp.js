@@ -7,15 +7,20 @@ function SignUp() {
   const [message, setMessage] = useState('');
 
   const handleSubmit = (e) => {
-    e.preventDefault();
-    userPool.signUp(email, password, [{ Name: 'email', Value: email }], null, (err, result) => {
-      if (err) {
-        setMessage(`Error: ${err.message}`);
-        return;
-      }
-      setMessage('Sign-up successful! Please check your email to confirm.');
-    });
-  };
+  e.preventDefault();
+
+  
+  const username = `${Date.now()}${Math.random()}`; // Example of generating a unique username
+
+  userPool.signUp(username, password, [{ Name: 'email', Value: email }], null, (err, result) => {
+    if (err) {
+      setMessage(`Error: ${err.message}`);
+      return;
+    }
+    setMessage('Sign-up successful! Please check your email to confirm.');
+  });
+};
+
 
   return (
     <div className="max-w-md mx-auto bg-white p-6 rounded shadow">

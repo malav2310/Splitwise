@@ -9,10 +9,8 @@ function Navbar({ user, onSignOut }) {
         <div>
           {user ? (
             <>
-              <Link to="/dashboard" className="text-white mx-2">Dashboard</Link>
+              <Link to="/join-group" className="text-white mx-2">Join Requests</Link>
               <Link to="/create-group" className="text-white mx-2">Create Group</Link>
-              <Link to="/add-expense" className="text-white mx-2">Add Expense</Link>
-              <Link to="/view-balances" className="text-white mx-2">View Balances</Link>
               <button onClick={onSignOut} className="text-white mx-2">Sign Out</button>
             </>
           ) : (

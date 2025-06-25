@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 
-const apiUrl = 'YOUR_API_GATEWAY_URL'; // Replace after deployment
+const apiUrl = 'https://sidvpohuge.execute-api.us-east-1.amazonaws.com/prod';
 
 function CreateGroup({ user }) {
+  console.log(user.token);
+  console.log("hello world");
   const [groupName, setGroupName] = useState('');
   const [message, setMessage] = useState('');
 
