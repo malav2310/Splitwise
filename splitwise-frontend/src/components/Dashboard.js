@@ -4,8 +4,8 @@ import { useState, useEffect } from "react"
 import axios from "axios"
 import { useNavigate } from "react-router-dom"
 
-const API_BASE_URL = "https://0tao54qjx0.execute-api.us-east-1.amazonaws.com/prod"
-const USE_MOCK_DATA = true
+const API_BASE_URL = "https://sidvpohuge.execute-api.us-east-1.amazonaws.com/prod"
+const USE_MOCK_DATA = false
 
 const mockGroups = [
   {
@@ -51,6 +51,7 @@ const Dashboard = ({ user }) => {
   const [messageType, setMessageType] = useState("")
   const navigate = useNavigate()
 
+  console.log("kaisan ba")
   useEffect(() => {
     const fetchGroupsAndBalances = async () => {
       setLoading(true)
@@ -65,14 +66,15 @@ const Dashboard = ({ user }) => {
       }
 
       try {
-        const token = (await window.Amplify.Auth.currentSession()).getIdToken().getJwtToken()
+        const token = user.token
 
         // Fetch user's groups
-        const groupsResponse = await axios.post(
-          `${API_BASE_URL}/get_groups`,
-          { pending: false }, // Get only joined groups
-          { headers: { Authorization: `Bearer ${token}` } },
-        )
+        console.log(token)
+        const groupsResponse = await axios.get(`${API_BASE_URL}/get_groups`, {
+  params: { pending: false }, 
+  headers: { Authorization: `Bearer ${token}` },
+})
+
 
         const userGroups = groupsResponse.data.groups || []
         setGroups(userGroups)
@@ -80,7 +82,7 @@ const Dashboard = ({ user }) => {
         // Fetch balances for each group
         const balancePromises = userGroups.map(async (group) => {
           try {
-            const balanceResponse = await axios.post(
+            const balanceResponse = await axios.get(
               `${API_BASE_URL}/balance_query`,
               { group_id: group.GroupId },
               { headers: { Authorization: `Bearer ${token}` } },
