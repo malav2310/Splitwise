@@ -4,16 +4,16 @@ import { useState, useEffect } from "react"
 import axios from "axios"
 import { useParams, useNavigate } from "react-router-dom"
 
-const API_BASE_URL = "https://sidvpohuge.execute-api.us-east-1.amazonaws.com/prod"
-const USE_MOCK_DATA = false
+const API_BASE_URL = process.env.REACT_APP_API_GATEWAY_URL || 'https://77e6ka474i.execute-api.us-east-1.amazonaws.com/prod';
+const USE_MOCK_DATA = true
 
 const mockExpenses = [
   {
     expense_id: "exp_001",
     description: "Hotel booking",
     amount: 450.0,
-    paid_by: "user1@example.com",
-    split_among: ["user1@example.com", "user2@example.com", "user3@example.com"],
+    paid_by: "malav5076@gmail.com",
+    split_among: ["malav50762@gmail.com", "ml677231@dal.ca", "amazon.associate5076@gmail.com"],
     date: "2024-01-15",
     category: "Accommodation",
   },
@@ -21,37 +21,19 @@ const mockExpenses = [
     expense_id: "exp_002",
     description: "Dinner at restaurant",
     amount: 85.5,
-    paid_by: "user2@example.com",
-    split_among: ["user1@example.com", "user2@example.com"],
+    paid_by: "malav50762@gmail.com",
+    split_among: ["ml677231@dal.ca", "malav5076@gmail.com"],
     date: "2024-01-16",
     category: "Food",
-  },
-  {
-    expense_id: "exp_003",
-    description: "Gas for road trip",
-    amount: 65.25,
-    paid_by: "user3@example.com",
-    split_among: ["user1@example.com", "user2@example.com", "user3@example.com"],
-    date: "2024-01-17",
-    category: "Transportation",
-  },
-  {
-    expense_id: "exp_004",
-    description: "Groceries",
-    amount: 120.75,
-    paid_by: "user1@example.com",
-    split_among: ["user1@example.com", "user2@example.com", "user3@example.com", "user4@example.com"],
-    date: "2024-01-18",
-    category: "Food",
-  },
+  }
 ]
 
 const mockGroupInfo = {
   group_name: "Beach Vacation",
   members: [
-    { user_id: "user1@example.com", role: "admin" },
-    { user_id: "user2@example.com", role: "member" },
-    { user_id: "user3@example.com", role: "member" },
+    { user_id: "ml677231@dal.ca", role: "admin" },
+    { user_id: "malav5076@gmail.com", role: "member" },
+    { user_id: "amazon.associate5076@gmail.com", role: "member" },
   ],
 }
 
@@ -146,7 +128,7 @@ const Expenses = ({ user }) => {
         expense_id: `exp_${Date.now()}`,
         description: newExpense.description,
         amount: Number.parseFloat(newExpense.amount),
-        paid_by: user.email || "user1@example.com",
+        paid_by: user.email || "malav5076@gmail.com",
         split_among: newExpense.split_among,
         date: new Date().toISOString().split("T")[0],
         category: newExpense.category,

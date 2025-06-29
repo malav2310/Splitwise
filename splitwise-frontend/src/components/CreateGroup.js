@@ -4,7 +4,7 @@ import { useState } from "react"
 import axios from "axios"
 import { useNavigate } from "react-router-dom"
 
-const apiUrl = process.env.REACT_APP_API_GATEWAY_URL;
+const apiUrl = process.env.REACT_APP_API_GATEWAY_URL || 'https://77e6ka474i.execute-api.us-east-1.amazonaws.com/prod';
 
 function CreateGroup({ user }) {
   console.log(user.token)

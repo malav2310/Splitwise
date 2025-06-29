@@ -4,8 +4,8 @@ import { useState, useEffect } from "react"
 import axios from "axios"
 import { useNavigate } from "react-router-dom"
 
-const API_BASE_URL = "https://sidvpohuge.execute-api.us-east-1.amazonaws.com/prod"
-const USE_MOCK_DATA = false
+const API_BASE_URL = process.env.REACT_APP_API_GATEWAY_URL || 'https://77e6ka474i.execute-api.us-east-1.amazonaws.com/prod';
+const USE_MOCK_DATA = true
 
 const mockGroups = [
   {
@@ -76,28 +76,35 @@ const Dashboard = ({ user }) => {
 })
 
 
-        const userGroups = groupsResponse.data.groups || []
-        setGroups(userGroups)
+      const userGroups = groupsResponse.data.groups || []
+setGroups(userGroups)
 
-        // Fetch balances for each group
-        const balancePromises = userGroups.map(async (group) => {
-          try {
-            const balanceResponse = await axios.get(
-              `${API_BASE_URL}/balance_query`,
-              { group_id: group.GroupId },
-              { headers: { Authorization: `Bearer ${token}` } },
-            )
-            return {
-              groupId: group.GroupId,
-              balance: balanceResponse.data.balance || 0,
-              type:
-                balanceResponse.data.balance > 0 ? "lending" : balanceResponse.data.balance < 0 ? "owing" : "settled",
-            }
-          } catch (err) {
-            console.error(`Error fetching balance for group ${group.GroupId}:`, err)
-            return { groupId: group.GroupId, balance: 0, type: "settled" }
-          }
-        })
+// Fetch balances for each group
+const balancePromises = userGroups.map(async (group) => {
+  try {
+    const balanceResponse = await axios.get(
+      `${API_BASE_URL}/balance_query`,
+      {
+        params: { group_id: group.GroupId },
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    )
+
+    return {
+      groupId: group.GroupId,
+      balance: balanceResponse.data.balance || 0,
+      type:
+        balanceResponse.data.balance > 0
+          ? "lending"
+          : balanceResponse.data.balance < 0
+          ? "owing"
+          : "settled",
+    }
+  } catch (err) {
+    console.error(`Error fetching balance for group ${group.GroupId}:`, err)
+    return { groupId: group.GroupId, balance: 0, type: "settled" }
+  }
+})
 
         const balanceResults = await Promise.all(balancePromises)
         const balanceMap = {}

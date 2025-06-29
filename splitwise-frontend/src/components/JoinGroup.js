@@ -6,33 +6,34 @@ import { useNavigate } from "react-router-dom"
 import { CognitoUser, AuthenticationDetails } from 'amazon-cognito-identity-js'
 import userPool from '../utils/userPool'
 
-const API_BASE_URL = "https://sidvpohuge.execute-api.us-east-1.amazonaws.com/prod"
-const USE_MOCK_DATA = false
+const API_BASE_URL = process.env.REACT_APP_API_GATEWAY_URL || 'https://77e6ka474i.execute-api.us-east-1.amazonaws.com/prod';
+const USE_MOCK_DATA = true
 console.log("hello world from join group")
 const mockPendingInvites = [
   {
     GroupId: "123e4567-e89b-12d3-a456-426614174000",
     group_name: "Beach Vacation",
     members: [
-      { user_id: "user1@example.com", pending: true, role: "member" },
-      { user_id: "user2@example.com", pending: false, role: "admin" },
+      { user_id: "malav50762@gmail.com", pending: true, role: "member" },
+      { user_id: "ml677231@dal.ca", pending: false, role: "admin" },
+      { user_id: "amazon.associate5076@gmail.com", pending: false, role: "member"}
     ],
   },
   {
     GroupId: "789a123b-cdef-4567-8901-234567890123",
     group_name: "Ski Trip",
     members: [
-      { user_id: "user3@example.com", pending: true, role: "member" },
-      { user_id: "user4@example.com", pending: false, role: "admin" },
+      { user_id: "malav50762@gmail.com", pending: true, role: "member" },
+      { user_id: "ml677231@dal.ca", pending: false, role: "admin" },
     ],
   },
   {
     GroupId: "456b789c-def0-1234-5678-901234567890",
     group_name: "Book Club",
     members: [
-      { user_id: "user5@example.com", pending: true, role: "member" },
-      { user_id: "user6@example.com", pending: false, role: "admin" },
-      { user_id: "user7@example.com", pending: false, role: "member" },
+      { user_id: "ml677231@dal.ca", pending: true, role: "member" },
+      { user_id: "amazon.associate5076@gmail.com", pending: false, role: "admin" },
+      { user_id: "malav50762@gmail.com", pending: false, role: "member" },
     ],
   },
 ]
