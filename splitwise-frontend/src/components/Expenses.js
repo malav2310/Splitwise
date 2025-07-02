@@ -5,7 +5,7 @@ import axios from "axios"
 import { useParams, useNavigate } from "react-router-dom"
 
 const API_BASE_URL = process.env.REACT_APP_API_GATEWAY_URL || 'https://77e6ka474i.execute-api.us-east-1.amazonaws.com/prod';
-const USE_MOCK_DATA = true
+const USE_MOCK_DATA = false
 
 const mockExpenses = [
   {
@@ -80,32 +80,61 @@ const Expenses = ({ user }) => {
       try {
         const token = user.token
 
-        // Fetch expenses
-        const expensesResponse = await axios.post(
-          `${API_BASE_URL}/get_expenses`,
-          { group_id: groupId },
-          { headers: { Authorization: `Bearer ${token}` } },
+        // Fetch balance data which includes expenses
+        const balanceResponse = await axios.get(
+          `${API_BASE_URL}/balance_query`,
+          {
+            params: { group_id: groupId },
+            headers: { Authorization: `Bearer ${token}` }
+          }
         )
 
         // Fetch group info
-        const groupResponse = await axios.post(
-          `${API_BASE_URL}/get_groups`,
-          {},
-          { headers: { Authorization: `Bearer ${token}` } },
-        )
-
+        const groupResponse = await axios.get(`${API_BASE_URL}/get_groups`, {
+          params: { pending: false }, 
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        
         const currentGroup = groupResponse.data.groups?.find((g) => g.GroupId === groupId)
 
-        setExpenses(expensesResponse.data.expenses || [])
+        // Extract expenses from balance response
+        const expensesData = balanceResponse.data.expenses || []
+        
+        // Transform expenses to match the expected format
+        const transformedExpenses = expensesData.map(expense => ({
+          expense_id: expense.expense_id,
+          description: expense.description,
+          amount: expense.amount,
+          paid_by: expense.payer_id, // Map payer_id to paid_by
+          split_among: expense.split_among,
+          date: expense.created_at ? new Date(expense.created_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+          category: expense.category || "Other", // Default to "Other" if category is not present
+          created_at: expense.created_at,
+          per_person_amount: expense.per_person_amount,
+          user_owes: expense.user_owes,
+          user_paid: expense.user_paid
+        }))
+
+        setExpenses(transformedExpenses)
         setGroupInfo(currentGroup)
+        console.log('Balance response:', balanceResponse.data)
+        console.log('Transformed expenses:', transformedExpenses)
+        console.log('Current group:', currentGroup)
 
         if (currentGroup) {
+          // Extract user_ids from members array, filtering only confirmed members (pending: false)
+          const confirmedMembers = currentGroup.members
+            .filter(member => !member.pending) // Only confirmed members
+            .map(member => member.user_id)
+          
           setNewExpense((prev) => ({
             ...prev,
-            split_among: currentGroup.members.map((m) => m.user_id),
+            split_among: confirmedMembers,
           }))
+          console.log('Confirmed members for split:', confirmedMembers)
         }
       } catch (err) {
+        console.error('Error fetching data:', err)
         setMessage(`Error: ${err.response?.data?.error || err.message}`)
         setMessageType("error")
       } finally {
@@ -148,7 +177,7 @@ const Expenses = ({ user }) => {
     }
 
     try {
-      const token = (await window.Amplify.Auth.currentSession()).getIdToken().getJwtToken()
+      const token = user.token
       const response = await axios.post(
         `${API_BASE_URL}/add_expense`,
         {
@@ -168,17 +197,36 @@ const Expenses = ({ user }) => {
         description: "",
         amount: "",
         category: "Food",
-        split_among: groupInfo.members.map((m) => m.user_id),
+        split_among: groupInfo?.members?.filter(m => !m.pending).map((m) => m.user_id) || [],
       })
 
-      // Refresh expenses
-      const expensesResponse = await axios.post(
-        `${API_BASE_URL}/get_expenses`,
-        { group_id: groupId },
-        { headers: { Authorization: `Bearer ${token}` } },
+      // Refresh expenses by fetching balance data again
+      const balanceResponse = await axios.get(
+        `${API_BASE_URL}/balance_query`,
+        {
+          params: { group_id: groupId },
+          headers: { Authorization: `Bearer ${token}` }
+        }
       )
-      setExpenses(expensesResponse.data.expenses || [])
+
+      const expensesData = balanceResponse.data.expenses || []
+      const transformedExpenses = expensesData.map(expense => ({
+        expense_id: expense.expense_id,
+        description: expense.description,
+        amount: expense.amount,
+        paid_by: expense.payer_id,
+        split_among: expense.split_among,
+        date: expense.created_at ? new Date(expense.created_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+        category: expense.category || "Other",
+        created_at: expense.created_at,
+        per_person_amount: expense.per_person_amount,
+        user_owes: expense.user_owes,
+        user_paid: expense.user_paid
+      }))
+
+      setExpenses(transformedExpenses)
     } catch (err) {
+      console.error('Error adding expense:', err)
       setMessage(`Error: ${err.response?.data?.error || err.message}`)
       setMessageType("error")
     } finally {
@@ -216,6 +264,7 @@ const Expenses = ({ user }) => {
       setShowInviteUser(false)
       setInviteEmail("")
     } catch (err) {
+      console.error('Error inviting user:', err)
       setMessage(`Error: ${err.response?.data?.error || err.message}`)
       setMessageType("error")
     } finally {
@@ -224,6 +273,7 @@ const Expenses = ({ user }) => {
   }
 
   const formatDate = (dateString) => {
+    if (!dateString) return "N/A"
     return new Date(dateString).toLocaleDateString("en-US", {
       year: "numeric",
       month: "short",
@@ -303,8 +353,8 @@ const Expenses = ({ user }) => {
             <h1 className="text-3xl font-bold text-gray-900">{groupInfo?.group_name || "Group Expenses"}</h1>
           </div>
           <p className="text-gray-600">
-            {expenses.length} expense{expenses.length !== 1 ? "s" : ""} • {groupInfo?.members?.length || 0} member
-            {groupInfo?.members?.length !== 1 ? "s" : ""}
+            {expenses.length} expense{expenses.length !== 1 ? "s" : ""} • {groupInfo?.members?.filter(m => !m.pending).length || 0} member
+            {groupInfo?.members?.filter(m => !m.pending).length !== 1 ? "s" : ""}
           </p>
         </div>
 
@@ -401,16 +451,32 @@ const Expenses = ({ user }) => {
                       </span>
                       <span className="hidden sm:inline">•</span>
                       <span>
-                        Split among {expense.split_among.length} member{expense.split_among.length !== 1 ? "s" : ""}
+                        Split among {expense.split_among?.length || 0} member{expense.split_among?.length !== 1 ? "s" : ""}
                       </span>
                       <span className="hidden sm:inline">•</span>
-                      <span>{formatDate(expense.date)}</span>
+                      <span>{formatDate(expense.date || expense.created_at)}</span>
                     </div>
+                    
+                    {/* Additional info from Lambda response */}
+                    {(expense.user_owes > 0 || expense.user_paid > 0) && (
+                      <div className="mt-2 text-sm">
+                        {expense.user_paid > 0 && (
+                          <span className="inline-block bg-green-100 text-green-800 px-2 py-1 rounded-full mr-2">
+                            You paid: ${expense.user_paid.toFixed(2)}
+                          </span>
+                        )}
+                        {expense.user_owes > 0 && (
+                          <span className="inline-block bg-orange-100 text-orange-800 px-2 py-1 rounded-full">
+                            You owe: ${expense.user_owes.toFixed(2)}
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <div className="text-right">
                     <div className="text-2xl font-bold text-gray-900">${expense.amount.toFixed(2)}</div>
                     <div className="text-sm text-gray-600">
-                      ${(expense.amount / expense.split_among.length).toFixed(2)} per person
+                      ${expense.per_person_amount ? expense.per_person_amount.toFixed(2) : (expense.amount / (expense.split_among?.length || 1)).toFixed(2)} per person
                     </div>
                   </div>
                 </div>
@@ -479,7 +545,7 @@ const Expenses = ({ user }) => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Split among</label>
                   <div className="space-y-2 max-h-32 overflow-y-auto">
-                    {groupInfo?.members?.map((member) => (
+                    {groupInfo?.members?.filter(member => !member.pending).map((member) => (
                       <label key={member.user_id} className="flex items-center">
                         <input
                           type="checkbox"

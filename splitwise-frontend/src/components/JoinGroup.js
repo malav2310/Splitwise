@@ -7,7 +7,7 @@ import { CognitoUser, AuthenticationDetails } from 'amazon-cognito-identity-js'
 import userPool from '../utils/userPool'
 
 const API_BASE_URL = process.env.REACT_APP_API_GATEWAY_URL || 'https://77e6ka474i.execute-api.us-east-1.amazonaws.com/prod';
-const USE_MOCK_DATA = true
+const USE_MOCK_DATA = false
 console.log("hello world from join group")
 const mockPendingInvites = [
   {

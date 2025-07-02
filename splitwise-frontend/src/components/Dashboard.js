@@ -5,7 +5,7 @@ import axios from "axios"
 import { useNavigate } from "react-router-dom"
 
 const API_BASE_URL = process.env.REACT_APP_API_GATEWAY_URL || 'https://77e6ka474i.execute-api.us-east-1.amazonaws.com/prod';
-const USE_MOCK_DATA = true
+const USE_MOCK_DATA = false
 
 const mockGroups = [
   {
@@ -51,77 +51,136 @@ const Dashboard = ({ user }) => {
   const [messageType, setMessageType] = useState("")
   const navigate = useNavigate()
 
-  console.log("kaisan ba")
   useEffect(() => {
-    const fetchGroupsAndBalances = async () => {
-      setLoading(true)
+   const fetchGroupsAndBalances = async () => {
+  setLoading(true)
 
-      if (USE_MOCK_DATA) {
-        // Simulate API delay
-        await new Promise((resolve) => setTimeout(resolve, 1000))
-        setGroups(mockGroups)
-        setBalances(mockBalances)
-        setLoading(false)
-        return
-      }
-
-      try {
-        const token = user.token
-
-        // Fetch user's groups
-        console.log(token)
-        const groupsResponse = await axios.get(`${API_BASE_URL}/get_groups`, {
-  params: { pending: false }, 
-  headers: { Authorization: `Bearer ${token}` },
-})
-
-
-      const userGroups = groupsResponse.data.groups || []
-setGroups(userGroups)
-
-// Fetch balances for each group
-const balancePromises = userGroups.map(async (group) => {
-  try {
-    const balanceResponse = await axios.get(
-      `${API_BASE_URL}/balance_query`,
-      {
-        params: { group_id: group.GroupId },
-        headers: { Authorization: `Bearer ${token}` },
-      }
-    )
-
-    return {
-      groupId: group.GroupId,
-      balance: balanceResponse.data.balance || 0,
-      type:
-        balanceResponse.data.balance > 0
-          ? "lending"
-          : balanceResponse.data.balance < 0
-          ? "owing"
-          : "settled",
-    }
-  } catch (err) {
-    console.error(`Error fetching balance for group ${group.GroupId}:`, err)
-    return { groupId: group.GroupId, balance: 0, type: "settled" }
+  if (USE_MOCK_DATA) {
+    // Simulate API delay
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+    setGroups(mockGroups)
+    setBalances(mockBalances)
+    setLoading(false)
+    return
   }
-})
 
-        const balanceResults = await Promise.all(balancePromises)
+  try {
+    const token = user.token
+    
+    // Fetch user's groups
+    console.log(token)
+    const groupsResponse = await axios.get(`${API_BASE_URL}/get_groups`, {
+      params: { pending: false },
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    
+    const userGroups = groupsResponse.data.groups || []
+    setGroups(userGroups)
+    
+    // Extract all group IDs
+    const groupIds = userGroups.map(group => group.GroupId)
+    
+    if (groupIds.length > 0) {
+      try {
+        // Fetch balances for all groups in a single request
+        const balanceResponse = await axios.post(
+          `${API_BASE_URL}/balance_query`,
+          {
+            group_ids: groupIds
+          },
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        )
+        
         const balanceMap = {}
-        balanceResults.forEach((result) => {
-          balanceMap[result.groupId] = {
-            balance: result.balance,
-            type: result.type,
+        
+        // Handle single group response (backward compatibility)
+        if (balanceResponse.data.balance !== undefined) {
+          const singleGroupData = balanceResponse.data
+          balanceMap[groupIds[0]] = {
+            balance: singleGroupData.balance || 0,
+            type: singleGroupData.type || "settled",
+            owes: singleGroupData.owes || 0,
+            lends: singleGroupData.lends || 0
+          }
+        }
+        // Handle multiple groups response
+        else if (balanceResponse.data.balances) {
+          balanceResponse.data.balances.forEach((balanceData) => {
+            balanceMap[balanceData.group_id] = {
+              balance: balanceData.balance || 0,
+              type: balanceData.type || "settled",
+              owes: balanceData.owes || 0,
+              lends: balanceData.lends || 0,
+              error: balanceData.error || null
+            }
+          })
+        }
+        
+        setBalances(balanceMap)
+        
+      } catch (balanceErr) {
+        console.error("Error fetching balances:", balanceErr)
+        
+        // Fallback to individual requests if bulk request fails
+        const balancePromises = userGroups.map(async (group) => {
+          try {
+            const balanceResponse = await axios.get(
+              `${API_BASE_URL}/balance_query`,
+              {
+                params: { group_id: group.GroupId },
+                headers: { Authorization: `Bearer ${token}` },
+              }
+            )
+            
+            return {
+              groupId: group.GroupId,
+              balance: balanceResponse.data.balance || 0,
+              type: balanceResponse.data.type || 
+                (balanceResponse.data.balance > 0 ? "lending" : 
+                 balanceResponse.data.balance < 0 ? "owing" : "settled"),
+              owes: balanceResponse.data.owes || 0,
+              lends: balanceResponse.data.lends || 0
+            }
+          } catch (err) {
+            console.error(`Error fetching balance for group ${group.GroupId}:`, err)
+            return { 
+              groupId: group.GroupId, 
+              balance: 0, 
+              type: "settled",
+              owes: 0,
+              lends: 0,
+              error: err.response?.data?.error || err.message
+            }
           }
         })
-        setBalances(balanceMap)
-      } catch (err) {
-        setMessage(`Error: ${err.response?.data?.error || err.message}`)
-        setMessageType("error")
-      } finally {
-        setLoading(false)
+        
+        const balanceResults = await Promise.all(balancePromises)
+        const fallbackBalanceMap = {}
+        balanceResults.forEach((result) => {
+          fallbackBalanceMap[result.groupId] = {
+            balance: result.balance,
+            type: result.type,
+            owes: result.owes,
+            lends: result.lends,
+            error: result.error
+          }
+        })
+        setBalances(fallbackBalanceMap)
       }
+    } else {
+      // No groups found
+      setBalances({})
     }
+    
+  } catch (err) {
+    setMessage(`Error: ${err.response?.data?.error || err.message}`)
+    setMessageType("error")
+  } finally {
+    setLoading(false)
+  }
+}
 
     if (user) {
       fetchGroupsAndBalances()
